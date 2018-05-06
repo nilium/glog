@@ -49,7 +49,6 @@ func createLogDirs() {
 
 var (
 	pid      = os.Getpid()
-	program  = filepath.Base(os.Args[0])
 	host     = "unknownhost"
 	userName = "unknownuser"
 )
@@ -80,9 +79,9 @@ func shortHostname(hostname string) string {
 
 // logName returns a new log file name containing tag, with start time t, and
 // the name for the symlink for tag.
-func logName(tag string, t time.Time) (name, link string) {
+func logName(logname, tag string, t time.Time) (name, link string) {
 	name = fmt.Sprintf("%s.%s.%s.log.%s.%04d%02d%02d-%02d%02d%02d.%d",
-		program,
+		logname,
 		host,
 		userName,
 		tag,
@@ -93,7 +92,7 @@ func logName(tag string, t time.Time) (name, link string) {
 		t.Minute(),
 		t.Second(),
 		pid)
-	return name, program + "." + tag
+	return name, logname + "." + tag
 }
 
 var onceLogDirs sync.Once
@@ -102,12 +101,12 @@ var onceLogDirs sync.Once
 // contains tag ("INFO", "FATAL", etc.) and t.  If the file is created
 // successfully, create also attempts to update the symlink for that tag, ignoring
 // errors.
-func create(tag string, t time.Time) (f *os.File, filename string, err error) {
+func create(logname, tag string, t time.Time) (f *os.File, filename string, err error) {
 	onceLogDirs.Do(createLogDirs)
 	if len(logDirs) == 0 {
 		return nil, "", errors.New("log: no log dirs")
 	}
-	name, link := logName(tag, t)
+	name, link := logName(logname, tag, t)
 	var lastErr error
 	for _, dir := range logDirs {
 		fname := filepath.Join(dir, name)
