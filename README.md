@@ -54,4 +54,4 @@ License
 ---
 
 As with the original golang/glog package, this is licensed under the Apache-2.0 license.
-A copy of the license can be found in the COPYING file.
+A copy of the license can be found in the LICENSE file.
