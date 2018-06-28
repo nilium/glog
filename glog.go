@@ -342,6 +342,11 @@ type Options struct {
 	// The expected format is "file:line". For example, "main.go:62" to print a backtrace when
 	// a Logger prints from line 62 of main.go.
 	TraceLocation string
+
+	// Dir sets the directory that log files are written to. If empty and ToStderr is not true,
+	// this defaults to the current directory. The directory must exist and be writable by the
+	// process.
+	Dir string
 }
 
 // NewOptions returns a basic set of Options for creating a logger.
@@ -355,6 +360,17 @@ func NewOptions() Options {
 	}
 }
 
+func (opt *Options) getDir() string {
+	if opt == nil || opt.Dir == "" {
+		pwd, err := os.Getwd()
+		if err != nil {
+			pwd = "."
+		}
+		return pwd
+	}
+	return opt.Dir
+}
+
 // Logger writes formatted log messages to files and/or standard error.
 type Logger struct {
 	// Previously known as loggingT. Most previously-global data (e.g., Stats) has been migrated
@@ -362,6 +378,8 @@ type Logger struct {
 
 	// Name of the log program or log, used when creating log files.
 	logname string
+	// Directory of the log files, when toStderr is false.
+	dir string
 
 	// Boolean flags. Not handled atomically because the flag.Value interface
 	// does not let us avoid the =true, and that shorthand is necessary for
@@ -428,6 +446,8 @@ func NewLog(opts Options) (*Logger, error) {
 	}
 
 	L := &Logger{
+		logname:         opts.LogName,
+		dir:             opts.getDir(),
 		toStderr:        opts.ToStderr,
 		alsoToStderr:    opts.AlsoToStderr,
 		stderrThreshold: opts.StderrThreshold,
@@ -875,7 +895,7 @@ func (sb *syncBuffer) rotateFile(now time.Time) error {
 		sb.file.Close()
 	}
 	var err error
-	sb.file, _, err = create(sb.logger.logname, severityName[sb.sev], now)
+	sb.file, _, err = create(sb.logger.dir, sb.logger.logname, severityName[sb.sev], now)
 	sb.nbytes = 0
 	if err != nil {
 		return err

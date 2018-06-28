@@ -19,8 +19,6 @@
 package glog
 
 import (
-	"errors"
-	"flag"
 	"fmt"
 	"os"
 	"os/user"
@@ -32,20 +30,6 @@ import (
 
 // MaxSize is the maximum size of a log file in bytes.
 var MaxSize uint64 = 1024 * 1024 * 1800
-
-// logDirs lists the candidate directories for new log files.
-var logDirs []string
-
-// If non-empty, overrides the choice of directory in which to write logs.
-// See createLogDirs for the full list of possible destinations.
-var logDir = flag.String("log_dir", "", "If non-empty, write log files in this directory")
-
-func createLogDirs() {
-	if *logDir != "" {
-		logDirs = append(logDirs, *logDir)
-	}
-	logDirs = append(logDirs, os.TempDir())
-}
 
 var (
 	pid      = os.Getpid()
@@ -101,23 +85,15 @@ var onceLogDirs sync.Once
 // contains tag ("INFO", "FATAL", etc.) and t.  If the file is created
 // successfully, create also attempts to update the symlink for that tag, ignoring
 // errors.
-func create(logname, tag string, t time.Time) (f *os.File, filename string, err error) {
-	onceLogDirs.Do(createLogDirs)
-	if len(logDirs) == 0 {
-		return nil, "", errors.New("log: no log dirs")
-	}
+func create(dir, logname, tag string, t time.Time) (f *os.File, filename string, err error) {
 	name, link := logName(logname, tag, t)
-	var lastErr error
-	for _, dir := range logDirs {
-		fname := filepath.Join(dir, name)
-		f, err := os.Create(fname)
-		if err == nil {
-			symlink := filepath.Join(dir, link)
-			os.Remove(symlink)        // ignore err
-			os.Symlink(name, symlink) // ignore err
-			return f, fname, nil
-		}
-		lastErr = err
+	fname := filepath.Join(dir, name)
+	f, err = os.Create(fname)
+	if err != nil {
+		return nil, "", fmt.Errorf("log: cannot create log: %v", err)
 	}
-	return nil, "", fmt.Errorf("log: cannot create log: %v", lastErr)
+	symlink := filepath.Join(dir, link)
+	os.Remove(symlink)        // ignore err
+	os.Symlink(name, symlink) // ignore err
+	return f, fname, nil
 }
